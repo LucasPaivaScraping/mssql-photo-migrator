@@ -10,22 +10,35 @@ import os
 import sys
 
 
-SERVER = ''
-PORT = 1433
-USERNAME = ''
-PASSWORD = ''
-DATABASE = ''
+###############################################################################
+# Configure the next variables
+###############################################################################
+
+DB_SERVER = ''
+DB_PORT = 1433
+DB_USERNAME = ''
+DB_PASSWORD = ''
+DB_DATABASE = ''
 
 IMAGES_FOLDER = 'images'
 
-IMAGES_DIR = None
+ADS_SQL = """
+SELECT TOP 100
+    CodAvisoDv, FechaAlta, Plano,
+    Foto1, Foto2, Foto3, Foto4, Foto5, Foto6, Foto7, Foto8, Foto9,
+    Foto10, Foto11, Foto12, Foto13, Foto14, Foto15
+FROM
+    DueAvisosDvFotosNuevoSistema
+"""
 
 
 def eprint(*args, **kwargs):
+    """Like print(), but writes to stderr"""
     print(*args, file=sys.stderr, **kwargs)
 
 
 class Db:
+    """Database connection abstraction"""
     def __init__(self, server, port, username, password, database):
         self._conn = pymssql.connect(
             server=server, port=port, user=username, password=password,
@@ -33,6 +46,7 @@ class Db:
         )
 
     def query(self, sql, binds=None):
+        """Yields the files obtained in the query"""
         cursor = self._conn.cursor(as_dict=True)
 
         cursor.execute(sql)
@@ -42,24 +56,60 @@ class Db:
 
 
 class AdImagesDao:
-    def __init__(self, db):
+    """Data access object"""
+    def __init__(self, db, ads_sql):
         self.db = db
+        self.ads_sql = ads_sql
 
     def all(self):
-        sql = """
-        SELECT TOP 10
-            CodAvisoDv, FechaAlta, Plano,
-            Foto1, Foto2, Foto3, Foto4, Foto5, Foto6, Foto7, Foto8, Foto9,
-            Foto10, Foto11, Foto12, Foto13, Foto14, Foto15
-        FROM
-            DueAvisosDvFotosNuevoSistema
-        """
-
-        for row in self.db.query(sql):
+        for row in self.db.query(self.ads_sql):
             yield row
 
 
+class AdImage:
+    """Abstraction of an image and the info that need to be saved"""
+    def __init__(self, dir, filename, bytes_):
+        self.dir = dir
+        self.filename = filename
+        self.bytes_ = bytes_
+
+    def add_extension(self):
+        """
+        Try to get the image type. If succeed, adds the extension to the
+        filename.
+        """
+        ext = None
+
+        try:
+            ext = imghdr.what(None, h=self.bytes_)
+        except:
+            pass
+
+        if ext:
+            self.filename += '.' + ext
+
+
+    def save(self):
+        """
+        Saves the image to disk. If the image existed previously, keeps the
+        original file.
+        """
+        self.add_extension()
+
+        fullpath = os.path.join(self.dir, self.filename)
+
+        if os.path.isfile(fullpath):
+            return
+
+        with open(fullpath, 'ab') as f:
+            f.write(self.bytes_)
+
+
 class AdImages:
+    """
+    Abstraction of the list of images of and ad, and other info needed to save
+    them.
+    """
     def __init__(self, row):
         self.row = row
 
@@ -72,28 +122,28 @@ class AdImages:
         if self.dt:
             self.dt = self.dt.strftime("%Y%m%d_%H%M%S")
 
-        self.has_floor_plan = (row['Plano'])
-        self.has_img_01 = (row['Foto1'])
-        self.has_img_02 = (row['Foto2'])
-        self.has_img_03 = (row['Foto3'])
-        self.has_img_04 = (row['Foto4'])
-        self.has_img_05 = (row['Foto5'])
-        self.has_img_06 = (row['Foto6'])
-        self.has_img_07 = (row['Foto7'])
-        self.has_img_08 = (row['Foto8'])
-        self.has_img_09 = (row['Foto9'])
-        self.has_img_10 = (row['Foto10'])
-        self.has_img_11 = (row['Foto11'])
-        self.has_img_12 = (row['Foto12'])
-        self.has_img_13 = (row['Foto13'])
-        self.has_img_14 = (row['Foto14'])
-        self.has_img_15 = (row['Foto15'])
+        self.has_floor_plan = bool(row['Plano'])
+        self.has_img_01 = bool(row['Foto1'])
+        self.has_img_02 = bool(row['Foto2'])
+        self.has_img_03 = bool(row['Foto3'])
+        self.has_img_04 = bool(row['Foto4'])
+        self.has_img_05 = bool(row['Foto5'])
+        self.has_img_06 = bool(row['Foto6'])
+        self.has_img_07 = bool(row['Foto7'])
+        self.has_img_08 = bool(row['Foto8'])
+        self.has_img_09 = bool(row['Foto9'])
+        self.has_img_10 = bool(row['Foto10'])
+        self.has_img_11 = bool(row['Foto11'])
+        self.has_img_12 = bool(row['Foto12'])
+        self.has_img_13 = bool(row['Foto13'])
+        self.has_img_14 = bool(row['Foto14'])
+        self.has_img_15 = bool(row['Foto15'])
 
     def ensure_dir(self):
         if self.dir_created:
             return
 
-        dir = os.path.join(IMAGES_DIR, str(self.id))
+        dir = os.path.join(os.getcwd(), IMAGES_FOLDER, str(self.id))
         self.dir = dir
 
         if os.path.exists(dir):
@@ -110,20 +160,12 @@ class AdImages:
 
             filename = "%s_%s_%s" % (self.id, 'plano', self.dt)
 
-            ext = None
-
-            try:
-                ext = imghdr.what(None, h=self.row['Plano'])
-            except:
-                pass
-
-            if ext:
-                filename = filename + '.' + ext
-
-            fullpath = os.path.join(self.dir, filename)
-
-            with open(fullpath, 'ab') as f:
-                f.write(self.row['Plano'])
+            ad_image = AdImage(
+                dir=self.dir,
+                filename=filename,
+                bytes_=self.row['Plano']
+            )
+            ad_image.save()
 
     def save_photos(self):
         for n in range(1, 16):
@@ -136,50 +178,31 @@ class AdImages:
 
                 filename = "%s_%s_%s" % (self.id, n_str, self.dt)
 
-                ext = None
-
-                try:
-                    ext = imghdr.what(None, h=self.row[row_idx])
-                except Exception as e:
-                    pass
-
-                if ext:
-                    filename = filename + '.' + ext
-
-                fullpath = os.path.join(self.dir, filename)
-
-                with open(fullpath, 'ab') as f:
-                    f.write(self.row[row_idx])
-
-    def add_extensions(self):
-        filenames = os.listdir(self.dir)
-
-        for filename in filenames:
-            pass
-            #fullpath = os.path.join()
+                ad_image = AdImage(
+                    dir=self.dir,
+                    filename=filename,
+                    bytes_=self.row[row_idx]
+                )
+                ad_image.save()
 
     def save(self):
         self.save_floor_plan()
         self.save_photos()
 
-        if self.dir_created:
-            pass
-            #self.add_extensions()
-
 
 if __name__ == '__main__':
-    IMAGES_DIR = os.path.join(os.getcwd(), IMAGES_FOLDER)
+    images_dir = os.path.join(os.getcwd(), IMAGES_FOLDER)
 
-    if not os.path.exists(IMAGES_DIR):
-        os.makedirs(IMAGES_DIR)
+    if not os.path.exists(images_dir):
+        os.makedirs(images_dir)
 
     try:
-        db = Db(SERVER, PORT, USERNAME, PASSWORD, DATABASE)
+        db = Db(DB_SERVER, DB_PORT, DB_USERNAME, DB_PASSWORD, DB_DATABASE)
     except:
         eprint('ERROR: could not connect to database')
         sys.exit(1)
 
-    dao = AdImagesDao(db=db)
+    dao = AdImagesDao(db=db, ads_sql=ADS_SQL)
 
     for row in dao.all():
         ad_images = AdImages(row)
@@ -188,9 +211,8 @@ if __name__ == '__main__':
             ad_images.save()
         except Exception as e:
             eprint(
-                'ERROR: error saving image from ad %s' % (
-                    ad_images.id,
+                'ERROR: could not save image from ad %s, exception: %s (%s)' % (
+                    ad_images.id, type(e).__name__, e
                 )
             )
-            raise e
             continue
