@@ -5,17 +5,17 @@
 
 ```bash
 $ sudo apt-get install freetds-dev
-
-$ sudo pip3 install -r requirements.txt
 ```
 
 
 ## Installation
 
 ```bash
-git clone https://github.com/kumbier/mssql-photo-migrator.git
+$ git clone https://github.com/kumbier/mssql-photo-migrator.git
 
-cd mssql-photo-migrator/
+$ cd mssql-photo-migrator/
+
+$ sudo pip3 install -r requirements.txt
 ```
 
 Set the DB parameters and the query to be used in `main.py`.
