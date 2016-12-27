@@ -14,7 +14,11 @@ $ sudo pip3 install pymssql
 git clone https://github.com/kumbier/mssql-photo-migrator.git
 
 cd mssql-photo-migrator/
+```
 
+Set the connection values on `main.py`.
+
+```bash
 python3 main.py
 ```
 
