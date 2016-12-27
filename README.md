@@ -26,3 +26,8 @@ Set the DB parameters and the query to be used in `main.py`.
 ```bash
 python3 main.py
 ```
+
+
+## Output
+
+The images are stored in the project dir, by default in the "images" folder.

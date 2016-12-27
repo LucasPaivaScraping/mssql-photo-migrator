@@ -160,12 +160,20 @@ class AdImages:
 
             filename = "%s_%s_%s" % (self.id, 'plano', self.dt)
 
-            ad_image = AdImage(
-                dir=self.dir,
-                filename=filename,
-                bytes_=self.row['Plano']
-            )
-            ad_image.save()
+            try:
+                ad_image = AdImage(
+                    dir=self.dir,
+                    filename=filename,
+                    bytes_=self.row['Plano']
+                )
+                ad_image.save()
+            except Exception as e:
+                eprint(
+                    'ERROR: could not save image from ad %s, exception: %s (%s)' % (
+                        self.id, type(e).__name__, e
+                    )
+                )
+
 
     def save_photos(self):
         for n in range(1, 16):
@@ -178,12 +186,20 @@ class AdImages:
 
                 filename = "%s_%s_%s" % (self.id, n_str, self.dt)
 
-                ad_image = AdImage(
-                    dir=self.dir,
-                    filename=filename,
-                    bytes_=self.row[row_idx]
-                )
-                ad_image.save()
+                try:
+                    ad_image = AdImage(
+                        dir=self.dir,
+                        filename=filename,
+                        bytes_=self.row[row_idx]
+                    )
+                    ad_image.save()
+                except Exception as e:
+                    eprint(
+                        'ERROR: could not save image from ad %s, exception: %s (%s)' % (
+                            self.id, type(e).__name__, e
+                        )
+                    )
+                    continue
 
     def save(self):
         self.save_floor_plan()
